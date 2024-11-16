@@ -39,7 +39,7 @@ def get_organization_reviews(org_id: int = 1124715036):
     organization_url = f"https://yandex.ru/maps/org/yandeks/{org_id}/reviews/"
     logger.info(f'Start {organization_url=}')
     path = os.path.join(os.getcwd(), 'json')
-    file_dttm = dt.datetime.now(dt.UTC)
+    file_dttm = dt.datetime.now(dt.timezone.utc)
 
     with webdriver.Firefox() as driver:
         driver.get(organization_url)
