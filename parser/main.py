@@ -11,7 +11,7 @@ import logging
 import sys
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.common.exceptions import StaleElementReferenceException
+from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
 import random
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -60,6 +60,8 @@ def get_organization_reviews(org_id: int = 1124715036):
     
     with webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options) as driver:
         driver.get(organization_url)
+        
+        # Getting the total number of reviews
         total_reviews_text = driver.find_element(by=By.XPATH, value='//*[@class="card-section-header__title _wide"]').text
         total_reviews_int = int(re.sub(r'\D', '', total_reviews_text))
 
@@ -74,25 +76,34 @@ def get_organization_reviews(org_id: int = 1124715036):
             driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
             time.sleep(1)  # Дайте время для подгрузки новых данных
 
-            current_reviews = driver.find_elements(by=By.XPATH, value='//*[@class="business-review-view__info"]')
-            
-            for review_elem in list(current_reviews):
-                try:
+            try:
+                # Refresh the list of current reviews to avoid stale references
+                current_reviews = WebDriverWait(driver, 10).until(
+                    EC.presence_of_all_elements_located((By.XPATH, '//*[@class="business-review-view__info"]'))
+                )
+                
+                for review_elem in current_reviews:
                     if review_elem not in reviews_selenium_elems:
-                        WebDriverWait(driver, 2).until(EC.visibility_of(review_elem))
-                        driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
-                        reviews_selenium_elems.add(review_elem)
-                        last_update_time = time.time()
-                except StaleElementReferenceException:
-                    logger.warning("Stale element reference encountered. Retrying on next iteration.")
-                    continue
+                        try:
+                            driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
+                            reviews_selenium_elems.add(review_elem)
+                            last_update_time = time.time()
+                        except StaleElementReferenceException:
+                            logger.warning("Stale element reference encountered. Retrying on next iteration.")
+                            continue  # Skip this element and try the next one
 
+            except TimeoutException:
+                logger.warning("Timeout while waiting for reviews to load. Breaking the loop.")
+                break
+
+            # Update progress bar
             pbar.update(len(reviews_selenium_elems) - pbar.n)
-            time.sleep(0.5)
 
             if time.time() - last_update_time > timeout_limit:
                 logger.warning(f"Timeout reached: No new reviews added in the last {timeout_limit} seconds. Saving data.")
                 break
+
+            time.sleep(0.5)
         
         pbar.close()
         logger.info(f"FINISH {len(reviews_selenium_elems)=}")
