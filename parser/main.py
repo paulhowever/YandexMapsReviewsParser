@@ -11,6 +11,7 @@ import logging
 import sys
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.common.exceptions import StaleElementReferenceException
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -61,27 +62,36 @@ def get_organization_reviews(org_id: int = 1124715036):
         pbar = tqdm(total=min(total_reviews_int, 400))
         pbar.set_description("Loading first 400 reviews on the page")
         
+        last_update_time = time.time()  # время последнего обновления
+        timeout_limit = 20  # Лимит времени в секундах (установлено на 20 секунд)
+        
         while len(reviews_selenium_elems) < 400:
             tqdm_saved_len = len(reviews_selenium_elems)
             current_reviews = driver.find_elements(by=By.XPATH, value='//*[@class="business-review-view__info"]')
             
             for review_elem in current_reviews:
-              try:
-                  # Проверяем, если элемент уже сохранён, переполучаем его
-                  if review_elem not in reviews_selenium_elems:
-                      driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
-                      reviews_selenium_elems.add(review_elem)
-              except StaleElementReferenceException:
-                  # Если элемент устарел, просто пропускаем его
-                  continue
+                try:
+                    # Проверяем, если элемент уже сохранён, переполучаем его
+                    if review_elem not in reviews_selenium_elems:
+                        driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
+                        reviews_selenium_elems.add(review_elem)
+                        last_update_time = time.time()  # Обновляем время последнего добавления
+                except StaleElementReferenceException:
+                    # Если элемент устарел, просто пропускаем его
+                    continue
 
-            
             pbar.update(len(reviews_selenium_elems) - tqdm_saved_len)
             time.sleep(0.3)
+
+            # Проверяем, если прошло слишком много времени без новых данных
+            if time.time() - last_update_time > timeout_limit:
+                logger.warning(f"Timeout reached: No new reviews added in the last {timeout_limit} seconds. Saving data.")
+                break
         
         pbar.close()
         logger.info(f"FINISH {len(reviews_selenium_elems)=}")
 
+        # Сохраняем все собранные данные
         data = []
         for review_elem in tqdm(reviews_selenium_elems):
             new_review = Review()
