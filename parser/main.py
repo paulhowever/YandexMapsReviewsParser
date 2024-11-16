@@ -9,6 +9,8 @@ import os
 from tqdm import tqdm
 import logging
 import sys
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -41,7 +43,14 @@ def get_organization_reviews(org_id: int = 1124715036):
     path = os.path.join(os.getcwd(), 'json')
     file_dttm = dt.datetime.now(dt.timezone.utc)
 
-    with webdriver.Firefox() as driver:
+    # Setup Chrome options
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--headless")  # Optional: run in headless mode (without GUI)
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    # Initialize the Chrome WebDriver
+    with webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options) as driver:
         driver.get(organization_url)
         total_reviews_text = driver.find_element(by=By.XPATH,
                                                  value='//*[@class="card-section-header__title _wide"]').text
