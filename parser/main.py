@@ -58,10 +58,10 @@ def get_organization_reviews(org_id: int = 1124715036):
         total_reviews_int = int(re.sub(r'\D', '', total_reviews_text))
 
         reviews_selenium_elems = set()
-        pbar = tqdm(total=min(total_reviews_int, 9000))
-        pbar.set_description("Loading first 9000 reviews on the page")
+        pbar = tqdm(total=min(total_reviews_int, 400))
+        pbar.set_description("Loading first 400 reviews on the page")
         
-        while len(reviews_selenium_elems) < 9000:
+        while len(reviews_selenium_elems) < 400:
             tqdm_saved_len = len(reviews_selenium_elems)
             current_reviews = driver.find_elements(by=By.XPATH, value='//*[@class="business-review-view__info"]')
             
