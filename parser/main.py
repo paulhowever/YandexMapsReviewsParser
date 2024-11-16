@@ -13,6 +13,8 @@ from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import StaleElementReferenceException
 import random
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -81,8 +83,9 @@ def get_organization_reviews(org_id: int = 1124715036):
                         reviews_selenium_elems.add(review_elem)
                         last_update_time = time.time()  # Обновляем время последнего добавления
                 except StaleElementReferenceException:
-                    # Если элемент устарел, просто пропускаем его
-                    continue
+                    # Если элемент устарел, просто пропускаем его и пробуем снова найти элемент
+                    logger.warning("Stale element reference, retrying to find the element.")
+                    continue  # Важно продолжить выполнение
 
             pbar.update(len(reviews_selenium_elems) - tqdm_saved_len)
             time.sleep(0.3)
