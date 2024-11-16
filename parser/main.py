@@ -49,6 +49,9 @@ def get_organization_reviews(org_id: int = 1124715036):
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
+    # Explicitly specify the path to the Chrome binary
+    chrome_options.binary_location = "/usr/bin/google-chrome"  # Укажите путь к бинарному файлу Chrome
+    
     # Initialize the Chrome WebDriver
     with webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options) as driver:
         driver.get(organization_url)
