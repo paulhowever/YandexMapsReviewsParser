@@ -66,14 +66,15 @@ def get_organization_reviews(org_id: int = 1124715036):
             current_reviews = driver.find_elements(by=By.XPATH, value='//*[@class="business-review-view__info"]')
             
             for review_elem in current_reviews:
-                if len(reviews_selenium_elems) >= 9000:
-                    break
-                if review_elem not in reviews_selenium_elems:
-                    reviews_selenium_elems.add(review_elem)
-                    try:
-                        driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
-                    except selenium.common.exceptions.StaleElementReferenceException:
-                        continue
+              try:
+                  # Проверяем, если элемент уже сохранён, переполучаем его
+                  if review_elem not in reviews_selenium_elems:
+                      driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
+                      reviews_selenium_elems.add(review_elem)
+              except StaleElementReferenceException:
+                  # Если элемент устарел, просто пропускаем его
+                  continue
+
             
             pbar.update(len(reviews_selenium_elems) - tqdm_saved_len)
             time.sleep(0.3)
