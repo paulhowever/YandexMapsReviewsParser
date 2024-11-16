@@ -62,13 +62,18 @@ def get_organization_reviews(org_id: int = 1124715036):
         pbar = tqdm(total=total_reviews_int)
         pbar.set_description("Loading all reviews on the page")
         while total_reviews_int != len(reviews_selenium_elems):
-            tqdm_saved_len = len(reviews_selenium_elems)
-            # ToDo Тут не оптимально - мы всегда проходимся по всем отзывам от начала и до конца.
-            for review_elem in driver.find_elements(by=By.XPATH, value='//*[@class="business-review-view__info"]'):
-                reviews_selenium_elems.add(review_elem)
-                driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
-            pbar.update(len(reviews_selenium_elems) - tqdm_saved_len)
-            time.sleep(0.3)
+          tqdm_saved_len = len(reviews_selenium_elems)
+          current_reviews = driver.find_elements(by=By.XPATH, value='//*[@class="business-review-view__info"]')
+          for review_elem in current_reviews:
+              if review_elem not in reviews_selenium_elems:
+                  reviews_selenium_elems.add(review_elem)
+                  try:
+                      driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
+                  except selenium.common.exceptions.StaleElementReferenceException:
+                      continue
+          pbar.update(len(reviews_selenium_elems) - tqdm_saved_len)
+          time.sleep(0.3)
+
         pbar.close()
         logger.info(f"FINISH {len(reviews_selenium_elems)=}")
 
