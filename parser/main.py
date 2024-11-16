@@ -41,39 +41,43 @@ def get_organization_reviews(org_id: int = 1124715036):
     organization_url = f"https://yandex.ru/maps/org/yandeks/{org_id}/reviews/"
     logger.info(f'Start {organization_url=}')
     path = os.path.join(os.getcwd(), 'json')
+    if not os.path.exists(path):  # Создаём директорию, если не существует
+        os.makedirs(path)
     file_dttm = dt.datetime.now(dt.timezone.utc)
 
     # Setup Chrome options
     chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument("--headless")  # Optional: run in headless mode (without GUI)
+    chrome_options.add_argument("--headless")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-
-    # Explicitly specify the path to the Chrome binary
-    chrome_options.binary_location = "/usr/bin/google-chrome"  # Укажите путь к бинарному файлу Chrome
+    chrome_options.binary_location = "/usr/bin/google-chrome"
     
-    # Initialize the Chrome WebDriver
     with webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options) as driver:
         driver.get(organization_url)
-        total_reviews_text = driver.find_element(by=By.XPATH,
-                                                 value='//*[@class="card-section-header__title _wide"]').text
+        total_reviews_text = driver.find_element(by=By.XPATH, value='//*[@class="card-section-header__title _wide"]').text
         total_reviews_int = int(re.sub(r'\D', '', total_reviews_text))
-        reviews_selenium_elems = set()
-        pbar = tqdm(total=total_reviews_int)
-        pbar.set_description("Loading all reviews on the page")
-        while total_reviews_int != len(reviews_selenium_elems):
-          tqdm_saved_len = len(reviews_selenium_elems)
-          current_reviews = driver.find_elements(by=By.XPATH, value='//*[@class="business-review-view__info"]')
-          for review_elem in current_reviews:
-              if review_elem not in reviews_selenium_elems:
-                  reviews_selenium_elems.add(review_elem)
-                  try:
-                      driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
-                  except selenium.common.exceptions.StaleElementReferenceException:
-                      continue
-          pbar.update(len(reviews_selenium_elems) - tqdm_saved_len)
-          time.sleep(0.3)
 
+        reviews_selenium_elems = set()
+        pbar = tqdm(total=min(total_reviews_int, 500))
+        pbar.set_description("Loading first 500 reviews on the page")
+        
+        while len(reviews_selenium_elems) < 500:
+            tqdm_saved_len = len(reviews_selenium_elems)
+            current_reviews = driver.find_elements(by=By.XPATH, value='//*[@class="business-review-view__info"]')
+            
+            for review_elem in current_reviews:
+                if len(reviews_selenium_elems) >= 500:
+                    break
+                if review_elem not in reviews_selenium_elems:
+                    reviews_selenium_elems.add(review_elem)
+                    try:
+                        driver.execute_script("arguments[0].scrollIntoView(true);", review_elem)
+                    except selenium.common.exceptions.StaleElementReferenceException:
+                        continue
+            
+            pbar.update(len(reviews_selenium_elems) - tqdm_saved_len)
+            time.sleep(0.3)
+        
         pbar.close()
         logger.info(f"FINISH {len(reviews_selenium_elems)=}")
 
@@ -84,24 +88,12 @@ def get_organization_reviews(org_id: int = 1124715036):
             new_review.try_add_response(review_elem=review_elem, driver=driver)
             data.append(new_review.__dict__)
 
-        save_json(
-            data,
-            'reviews',
-            path,
-            org_id,
-            file_dttm,
-        )
+        save_json(data, 'reviews', path, org_id, file_dttm)
 
         def experimental():
             script_element = driver.find_element(by=By.XPATH, value='//script[@class="state-view"]')
             script_content = script_element.get_attribute("innerHTML")
-            save_json(
-                json.loads(script_content),
-                'script_content',
-                path,
-                org_id,
-                file_dttm,
-            )
+            save_json(json.loads(script_content), 'script_content', path, org_id, file_dttm)
 
         experimental()
 
