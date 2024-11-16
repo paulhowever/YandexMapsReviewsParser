@@ -12,6 +12,7 @@ import sys
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import StaleElementReferenceException
+import random
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -59,16 +60,19 @@ def get_organization_reviews(org_id: int = 1124715036):
         total_reviews_int = int(re.sub(r'\D', '', total_reviews_text))
 
         reviews_selenium_elems = set()
-        pbar = tqdm(total=min(total_reviews_int, 400))
-        pbar.set_description("Loading first 400 reviews on the page")
+        pbar = tqdm(total=min(total_reviews_int, 1000))  # Изменили 400 на 1000
+        pbar.set_description("Loading first 1000 reviews on the page")
         
         last_update_time = time.time()  # время последнего обновления
         timeout_limit = 20  # Лимит времени в секундах (установлено на 20 секунд)
         
-        while len(reviews_selenium_elems) < 400:
+        while len(reviews_selenium_elems) < 1000:  # Изменили 400 на 1000
             tqdm_saved_len = len(reviews_selenium_elems)
             current_reviews = driver.find_elements(by=By.XPATH, value='//*[@class="business-review-view__info"]')
             
+            # Перетасовываем текущие отзывы случайным образом
+            random.shuffle(current_reviews)
+
             for review_elem in current_reviews:
                 try:
                     # Проверяем, если элемент уже сохранён, переполучаем его
